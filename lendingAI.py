@@ -1,116 +1,123 @@
-#pip install "snowflake-snowpark-python[pandas]"
-
-#pip install snowflake-snowpark-python
-
-from snowflake.snowpark.session import Session
-
-from snowflake.snowpark.functions import avg, sum, col, lit
-
-import streamlit as st
-
-import pandas as pd
-
-
-def create_session_object():
-    connection_parameters = {
-        "account": "anblicksorg_aws.us-east-1",
-        "user": "LENDINGAI",
-        "password": "LendingAI@202308",
-        "role": "LENDINGAI_ARL",
-        "warehouse": "LENDINGAI_WH",
-        "database": "LENDINGAI_DB",
-        "schema": "RAW"
-    }
-    session = Session.builder.configs(connection_parameters).create()
-    return session  # Return the created session
-
-snowflake_session = create_session_object()
-
-
-
-# def load_data(session, table_name):
-
-    #with open('style_sum.css') as f:
-        #st.markdown(f'<style>{f.read()}</style>', unsafe_allow_html=True)
-
-#     snow_df = session.table(table_name)
-
-#     return snow_df
-
-snowflake_session = create_session_object()
-
-# Create a Streamlit app
-
-
-st.subheader("Loan Recommendation")
-
-# Get data from Snowflake for the tables
-
-transform_df = snowflake_session.table( 'LENDINGAI_DB.BASE.TBL_ID_TABLE')
+transform_df = session.table( 'LENDINGAI_DB.BASE.TBL_ID_TABLE')
 
     # Convert Snowflake DataFrames to pandas DataFrames
 
-trans_id_data = transform_df.to_pandas()
+    trans_id_data = transform_df.to_pandas()
 
-data=trans_id_data['id'].iloc[:10000]
+    data=trans_id_data['id'].iloc[:20000]
 
+    col1,col2,col3=st.columns(3)
 
-# colx,coly = st.columns([2,0])
+    with col2:
 
+            # Create the dropdown
 
-# with colx:
-prods = st.container()
+            st.write("Select Application ID:")
 
-with prods:
-        
-        col1, col3 = st.columns([2.1,2.1])
-        
-        selected_id = st.selectbox("Select Application ID:", data)
+            selected_id = st.selectbox("", data)
+
+            # Define a CSS style for the dropdown
 
         # Filter the DataFrame based on the selected "ID"
-        filtered_df = trans_id_data[trans_id_data['id'] == selected_id]
-    
-        # Display "EMP_TITLE" values based on the selected "ID"
-        col4, col5, col6 = st.columns(3)
 
-        with col4:
-        
-         st.markdown(f"<p style='text-align: center;'>Occupation of Employee</p>", unsafe_allow_html=True)
-         st.success(filtered_df['EMP_TITLE'].values[0])
+            filtered_df = trans_id_data[trans_id_data['id'] == selected_id]
 
-        # Display "TITLE" values based on the selected "ID"
+            # Display "EMP_TITLE" values based on the selected "ID"
+
+    col4, col5, col6 = st.columns(3)
+
+    with col4:
+
+            st.write("")
+
+            st.write("Occupation of Employee:")
+
+            st.success(filtered_df['EMP_TITLE'].values[0])
+
+            # Display "TITLE" values based on the selected "ID"
+
+    with col5:
+
+            st.write("")
+
+            st.write("Current Loan:")
+
+            st.success(filtered_df['TITLE'].values[0])
+
+            # Display "LOAN_AMNT" values based on the selected "ID"
+
+    with col6:
+
+            st.write("")
+
+            st.write("Loan Amount:")
+
+            st.success(filtered_df['LOAN_AMNT'].values[0])
+
+    filtered_titles = filtered_df['TITLE'].tolist()
+
+            #selected_title = col1.selectbox("Select title", filtered_titles)
+
+    INPUT_LIST = [filtered_titles]
+
+    INPUT_PRODUCT= filtered_titles
+
+                #snowflake_array = snowflake_session.to_array(INPUT_PRODUCT)
+
+    snowflake_array=','.join(map(str, INPUT_PRODUCT))
+
+    k=session.call('LENDINGAI_DB.BASE.SP_RECOMMENDER',snowflake_array)
+
+    arr=k.split(',')
+
+    loans=["Business","Medical expenses","Major purchase","Learning and training","Credit card refinancing","Debt consolidation","Car financing","Vacation","Moving and relocation","Green loans","Home improvement","Home buying"]
+
+    loan_images=["business_loan.jpg","medical_expenses_loan.jpg","major_purchase_loan.jpg","learning_loan.jpg","credit_card_refinancing.jpg","debt_consolidation.png","car_financing_loan.png","vacation_loan.png","moving_loan.png","green_loan.jpg","home_improvement.jpg","home_buying_loan.png"]
+
+    imgs=dict(zip(loans,loan_images))
+
+    if len(arr)==2:
+
+        arr[0]=arr[0][:-1]
+
+        arr[1]=arr[1][2:]
+
+        res=arr
+
         with col5:
-            
-         st.markdown(f"<p style='text-align: center;'>Current Loan</p>", unsafe_allow_html=True)
-         st.success(filtered_df['TITLE'].values[0])
 
-        # Display "LOAN_AMNT" values based on the selected "ID"
-        with col6:
-         st.markdown("<p style='text-align: center;'>Loan Amount</p>", unsafe_allow_html=True)
-         st.success(filtered_df['LOAN_AMNT'].values[0])
+            st.write("")
 
-        filtered_titles = filtered_df['TITLE'].tolist()
+            st.write("Recommended Loan(s):")
 
-        #selected_title = col1.selectbox("Select title", filtered_titles)
+            colr1,colr2=st.columns(2)
 
-        INPUT_LIST = [filtered_titles]
+            with colr1:
 
-        INPUT_PRODUCT= filtered_titles
+                st.markdown("<center><b>{}</b></center>".format(res[0]),unsafe_allow_html=True)
 
-            #snowflake_array = snowflake_session.to_array(INPUT_PRODUCT)
+                st.image(imgs[res[0]])
 
-        snowflake_array=','.join(map(str, INPUT_PRODUCT))
+            with colr2:
 
-        k=snowflake_session.call('LENDINGAI_DB.BASE.SP_RECOMMENDER',snowflake_array)
+                st.markdown("<center><b>{}</b></center>".format(res[1]),unsafe_allow_html=True)
+
+                st.image(imgs[res[1]])
+
+    elif len(arr)==1:
+
+        res=arr
 
         with col5:
-            st.markdown("<p style='text-align: center;'>Recommended Loan</p>", unsafe_allow_html=True)
-            st.success(k)
-            
 
+            st.write("")
 
- 
-    
+            st.write("Recommended Loan(s):")
 
-    
+            col11,col12,col13=st.columns([1,3,1])
 
+            with col12:
+
+                st.markdown("<center><b>{}</b></center>".format(res[0]),unsafe_allow_html=True)
+
+                st.image(imgs[res[0]])
